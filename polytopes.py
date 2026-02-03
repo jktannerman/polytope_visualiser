@@ -65,6 +65,9 @@ def create_cube() -> Polytope:
         (6, 7),
     ]
 
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
+
     return Polytope(vertices=vertices, edges=edges, name="Cube")
 
 
@@ -123,6 +126,9 @@ def create_tetrahedron() -> Polytope:
         (2, 3),
     ]
 
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
+
     return Polytope(vertices=vertices, edges=edges, name="Tetrahedron")
 
 
@@ -163,6 +169,9 @@ def create_icosahedron() -> Polytope:
             if np.isclose(dist_sq, edge_length_sq):
                 edges.append((i, j))
 
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
+
     return Polytope(vertices=vertices, edges=edges, name="Icosahedron")
 
 
@@ -202,6 +211,9 @@ def create_dodecahedron() -> Polytope:
             if np.isclose(dist_sq, edge_length_sq):
                 edges.append((i, j))
 
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
+
     return Polytope(vertices=vertices, edges=edges, name="Dodecahedron")
 
 
@@ -231,6 +243,9 @@ def create_tesseract() -> Polytope:
             diff_count = np.sum(vertices[i] != vertices[j])
             if diff_count == 1:
                 edges.append((i, j))
+
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
 
     return Polytope(vertices=vertices, edges=edges, name="Tesseract")
 
@@ -265,6 +280,9 @@ def create_5cell() -> Polytope:
         (2, 3), (2, 4),
         (3, 4),
     ]
+
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
 
     return Polytope(vertices=vertices, edges=edges, name="5-cell")
 
@@ -301,5 +319,8 @@ def create_16cell() -> Polytope:
             # Skip if they are opposites (same axis)
             if (i // 2) != (j // 2):
                 edges.append((i, j))
+
+    # Normalise vertices to unit distance from origin
+    vertices /= np.linalg.norm(vertices[0])
 
     return Polytope(vertices=vertices, edges=edges, name="16-cell")
