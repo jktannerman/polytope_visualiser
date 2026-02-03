@@ -99,6 +99,112 @@ def create_octahedron() -> Polytope:
     return Polytope(vertices=vertices, edges=edges, name="Octahedron")
 
 
+def create_tetrahedron() -> Polytope:
+    """Create a regular tetrahedron centered at the origin.
+
+    Returns:
+        Polytope with 4 vertices and 6 edges.
+    """
+    # Tetrahedron inscribed in a cube: alternating vertices
+    vertices = np.array(
+        [
+            [1, 1, 1],
+            [1, -1, -1],
+            [-1, 1, -1],
+            [-1, -1, 1],
+        ],
+        dtype=np.float64,
+    )
+
+    # Every vertex connects to every other vertex (complete graph K4)
+    edges = [
+        (0, 1), (0, 2), (0, 3),
+        (1, 2), (1, 3),
+        (2, 3),
+    ]
+
+    return Polytope(vertices=vertices, edges=edges, name="Tetrahedron")
+
+
+def create_icosahedron() -> Polytope:
+    """Create a regular icosahedron centered at the origin.
+
+    Returns:
+        Polytope with 12 vertices and 30 edges.
+    """
+    # Golden ratio
+    phi = (1 + np.sqrt(5)) / 2
+
+    # Vertices are cyclic permutations of (0, ±1, ±φ)
+    vertices = np.array(
+        [
+            [0, 1, phi],
+            [0, 1, -phi],
+            [0, -1, phi],
+            [0, -1, -phi],
+            [1, phi, 0],
+            [1, -phi, 0],
+            [-1, phi, 0],
+            [-1, -phi, 0],
+            [phi, 0, 1],
+            [phi, 0, -1],
+            [-phi, 0, 1],
+            [-phi, 0, -1],
+        ],
+        dtype=np.float64,
+    )
+
+    # Edge length is 2, so connect vertices at distance 2
+    edge_length_sq = 4.0
+    edges: list[tuple[int, int]] = []
+    for i in range(12):
+        for j in range(i + 1, 12):
+            dist_sq = np.sum((vertices[i] - vertices[j]) ** 2)
+            if np.isclose(dist_sq, edge_length_sq):
+                edges.append((i, j))
+
+    return Polytope(vertices=vertices, edges=edges, name="Icosahedron")
+
+
+def create_dodecahedron() -> Polytope:
+    """Create a regular dodecahedron centered at the origin.
+
+    Returns:
+        Polytope with 20 vertices and 30 edges.
+    """
+    # Golden ratio
+    phi = (1 + np.sqrt(5)) / 2
+    inv_phi = 1 / phi  # = φ - 1
+
+    vertices_list = []
+
+    # 8 cube vertices: (±1, ±1, ±1)
+    for x in [-1, 1]:
+        for y in [-1, 1]:
+            for z in [-1, 1]:
+                vertices_list.append([x, y, z])
+
+    # 12 vertices from cyclic permutations of (0, ±1/φ, ±φ)
+    for sign1 in [-1, 1]:
+        for sign2 in [-1, 1]:
+            vertices_list.append([0, sign1 * inv_phi, sign2 * phi])
+            vertices_list.append([sign1 * inv_phi, sign2 * phi, 0])
+            vertices_list.append([sign2 * phi, 0, sign1 * inv_phi])
+
+    vertices = np.array(vertices_list, dtype=np.float64)
+
+    # Edge length squared is (2/φ)² = 4/φ² ≈ 1.528
+    edge_length_sq = 4 / (phi * phi)
+    edges: list[tuple[int, int]] = []
+    for i in range(20):
+        for j in range(i + 1, 20):
+            dist_sq = np.sum((vertices[i] - vertices[j]) ** 2)
+            if np.isclose(dist_sq, edge_length_sq):
+                edges.append((i, j))
+
+    return Polytope(vertices=vertices, edges=edges, name="Dodecahedron")
+
+
 def create_tesseract() -> Polytope:
     """Create a tesseract (4D hypercube) centered at the origin.
 

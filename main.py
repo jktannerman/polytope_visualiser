@@ -9,7 +9,14 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from polytopes import create_cube, create_octahedron, create_tesseract
+from polytopes import (
+    create_cube,
+    create_dodecahedron,
+    create_icosahedron,
+    create_octahedron,
+    create_tetrahedron,
+    create_tesseract,
+)
 from transforms import (
     apply_rotation,
     apply_rotation_4d,
@@ -82,8 +89,11 @@ def main() -> None:
     """Run the polytope visualizer application."""
     # Polytope factory functions
     polytope_factories = {
+        "Tetrahedron": create_tetrahedron,
         "Cube": create_cube,
         "Octahedron": create_octahedron,
+        "Icosahedron": create_icosahedron,
+        "Dodecahedron": create_dodecahedron,
         "Tesseract": create_tesseract,
     }
 

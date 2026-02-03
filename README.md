@@ -6,6 +6,7 @@ A wireframe visualiser for 3D and 4D polytopes with interactive rotation control
 
 - **3D Polytopes**: Cube, Octahedron
 - **4D Polytopes**: Tesseract (hypercube)
+- **Projection Modes**: Orthogonal and perspective projection
 - **Interactive Rotation**: Real-time rotation via sliders
 - **Dynamic UI**: Automatically shows 3 sliders for 3D shapes, 6 for 4D
 - **Dark Mode**: Native dark theme with dark title bar on Windows
@@ -41,9 +42,12 @@ py -3.13 polytope_visualiser/main.py
 
 ### Projection Pipeline
 
+**Orthogonal projection** (default):
 ```
 4D vertices → [4D rotation] → [Drop W] → 3D → [Drop Z] → 2D screen
 ```
+
+**Perspective projection**: Applies depth-based scaling before dropping coordinates, creating a sense of depth where closer vertices appear larger.
 
 ### Rotation Order
 
