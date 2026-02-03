@@ -10,6 +10,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 from polytopes import (
+    create_16cell,
+    create_5cell,
     create_cube,
     create_dodecahedron,
     create_icosahedron,
@@ -94,7 +96,9 @@ def main() -> None:
         "Octahedron": create_octahedron,
         "Icosahedron": create_icosahedron,
         "Dodecahedron": create_dodecahedron,
+        "5-cell": create_5cell,
         "Tesseract": create_tesseract,
+        "16-cell": create_16cell,
     }
 
     # Create the initial polytope (use list for mutability in nested functions)

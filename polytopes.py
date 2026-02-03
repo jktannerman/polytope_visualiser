@@ -233,3 +233,73 @@ def create_tesseract() -> Polytope:
                 edges.append((i, j))
 
     return Polytope(vertices=vertices, edges=edges, name="Tesseract")
+
+
+def create_5cell() -> Polytope:
+    """Create a 5-cell (pentachoron) centered at the origin.
+
+    The 5-cell is the 4D analogue of the tetrahedron, the simplest
+    regular 4D polytope.
+
+    Returns:
+        Polytope with 5 vertices and 10 edges.
+    """
+    # 4 vertices form a tetrahedron in the w = -1/√5 hyperplane,
+    # with a 5th vertex along the +w axis
+    sqrt5 = np.sqrt(5)
+    vertices = np.array(
+        [
+            [1, 1, 1, -1 / sqrt5],
+            [1, -1, -1, -1 / sqrt5],
+            [-1, 1, -1, -1 / sqrt5],
+            [-1, -1, 1, -1 / sqrt5],
+            [0, 0, 0, 4 / sqrt5],
+        ],
+        dtype=np.float64,
+    )
+
+    # Every vertex connects to every other vertex (complete graph K5)
+    edges = [
+        (0, 1), (0, 2), (0, 3), (0, 4),
+        (1, 2), (1, 3), (1, 4),
+        (2, 3), (2, 4),
+        (3, 4),
+    ]
+
+    return Polytope(vertices=vertices, edges=edges, name="5-cell")
+
+
+def create_16cell() -> Polytope:
+    """Create a 16-cell (hexadecachoron) centered at the origin.
+
+    The 16-cell is the 4D analogue of the octahedron and the dual
+    of the tesseract.
+
+    Returns:
+        Polytope with 8 vertices and 24 edges.
+    """
+    # Vertices at ±1 along each axis
+    vertices = np.array(
+        [
+            [1, 0, 0, 0],   # 0: +X
+            [-1, 0, 0, 0],  # 1: -X
+            [0, 1, 0, 0],   # 2: +Y
+            [0, -1, 0, 0],  # 3: -Y
+            [0, 0, 1, 0],   # 4: +Z
+            [0, 0, -1, 0],  # 5: -Z
+            [0, 0, 0, 1],   # 6: +W
+            [0, 0, 0, -1],  # 7: -W
+        ],
+        dtype=np.float64,
+    )
+
+    # Each vertex connects to all others except its opposite
+    # Opposite pairs: (0,1), (2,3), (4,5), (6,7)
+    edges: list[tuple[int, int]] = []
+    for i in range(8):
+        for j in range(i + 1, 8):
+            # Skip if they are opposites (same axis)
+            if (i // 2) != (j // 2):
+                edges.append((i, j))
+
+    return Polytope(vertices=vertices, edges=edges, name="16-cell")
