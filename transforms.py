@@ -294,3 +294,54 @@ def orthogonal_project_4d(vertices_4d: NDArray[np.float64]) -> NDArray[np.float6
         Array of shape (N, 3) with 3D coordinates.
     """
     return vertices_4d[:, :3]
+
+
+def perspective_project(
+    vertices_3d: NDArray[np.float64],
+    distance: float,
+) -> NDArray[np.float64]:
+    """Project 3D vertices to 2D with perspective projection.
+
+    Camera is positioned at (0, 0, distance) looking toward the origin.
+
+    Args:
+        vertices_3d: Array of shape (N, 3) with 3D coordinates.
+        distance: Distance from camera to origin along Z-axis.
+
+    Returns:
+        Array of shape (N, 2) with 2D coordinates.
+    """
+    z = vertices_3d[:, 2]
+    # Clip vertices at/behind camera to avoid division issues
+    z_safe = np.minimum(z, distance - 0.01)
+    scale = distance / (distance - z_safe)
+    return np.column_stack([
+        vertices_3d[:, 0] * scale,
+        vertices_3d[:, 1] * scale,
+    ])
+
+
+def perspective_project_4d(
+    vertices_4d: NDArray[np.float64],
+    distance: float,
+) -> NDArray[np.float64]:
+    """Project 4D vertices to 3D with perspective projection.
+
+    Camera is positioned at (0, 0, 0, distance) looking toward the origin.
+
+    Args:
+        vertices_4d: Array of shape (N, 4) with 4D coordinates.
+        distance: Distance from camera to origin along W-axis.
+
+    Returns:
+        Array of shape (N, 3) with 3D coordinates.
+    """
+    w = vertices_4d[:, 3]
+    # Clip vertices at/behind camera to avoid division issues
+    w_safe = np.minimum(w, distance - 0.01)
+    scale = distance / (distance - w_safe)
+    return np.column_stack([
+        vertices_4d[:, 0] * scale,
+        vertices_4d[:, 1] * scale,
+        vertices_4d[:, 2] * scale,
+    ])

@@ -15,6 +15,8 @@ from transforms import (
     apply_rotation_4d,
     orthogonal_project,
     orthogonal_project_4d,
+    perspective_project,
+    perspective_project_4d,
 )
 from renderer import Renderer
 
@@ -118,11 +120,42 @@ def main() -> None:
     polytope_combo.pack(side=tk.LEFT, padx=(0, 20))
 
     ttk.Label(top_frame, text="Projection:").pack(side=tk.LEFT, padx=(0, 5))
+    projection_var = tk.StringVar(value="Orthogonal")
     projection_combo = ttk.Combobox(
-        top_frame, values=["Orthogonal"], state="readonly", width=15
+        top_frame,
+        values=["Orthogonal", "Perspective"],
+        state="readonly",
+        width=15,
+        textvariable=projection_var,
     )
-    projection_combo.set("Orthogonal")
-    projection_combo.pack(side=tk.LEFT)
+    projection_combo.pack(side=tk.LEFT, padx=(0, 20))
+
+    # Distance slider (for perspective projection)
+    distance_label = ttk.Label(top_frame, text="Distance:")
+    distance_var = tk.DoubleVar(value=4.0)
+    distance_slider = ttk.Scale(
+        top_frame,
+        from_=2.5,
+        to=10.0,
+        orient=tk.HORIZONTAL,
+        variable=distance_var,
+        length=100,
+    )
+    distance_value_label = ttk.Label(top_frame, text="4.0", width=4)
+
+    def update_distance_visibility() -> None:
+        """Show/hide distance slider based on projection type."""
+        if projection_var.get() == "Perspective":
+            distance_label.pack(side=tk.LEFT, padx=(0, 5))
+            distance_slider.pack(side=tk.LEFT, padx=(0, 5))
+            distance_value_label.pack(side=tk.LEFT)
+        else:
+            distance_label.pack_forget()
+            distance_slider.pack_forget()
+            distance_value_label.pack_forget()
+
+    # Initially hide distance controls (Orthogonal is default)
+    update_distance_visibility()
 
     # Create matplotlib figure with dark background
     fig = Figure(figsize=(6, 6), dpi=100, facecolor=BG_COLOR)
@@ -174,6 +207,11 @@ def main() -> None:
     def update(_: str | None = None) -> None:
         """Update the visualization when sliders change."""
         polytope = current_polytope[0]
+        use_perspective = projection_var.get() == "Perspective"
+        distance = distance_var.get()
+
+        # Update distance value label
+        distance_value_label.config(text=f"{distance:.1f}")
 
         if polytope.dim == 4:
             # 4D rotation and projection
@@ -187,8 +225,15 @@ def main() -> None:
             rotated_4d = apply_rotation_4d(
                 polytope.vertices, rxy, rxz, rxw, ryz, ryw, rzw
             )
-            rotated_3d = orthogonal_project_4d(rotated_4d)
-            projected = orthogonal_project(rotated_3d)
+
+            if use_perspective:
+                # Perspective: 4D→3D then 3D→2D
+                rotated_3d = perspective_project_4d(rotated_4d, distance)
+                projected = perspective_project(rotated_3d, distance)
+            else:
+                # Orthogonal
+                rotated_3d = orthogonal_project_4d(rotated_4d)
+                projected = orthogonal_project(rotated_3d)
         else:
             # 3D rotation and projection
             # Map XY/XZ/YZ plane rotations to X/Y/Z axis rotations
@@ -197,7 +242,16 @@ def main() -> None:
             rz = np.radians(slider_vars["rxy"].get())  # XY plane = Z axis
 
             rotated = apply_rotation(polytope.vertices, rx, ry, rz)
-            projected = orthogonal_project(rotated)
+
+            if use_perspective:
+                projected = perspective_project(rotated, distance)
+            else:
+                projected = orthogonal_project(rotated)
+
+        # Normalize to fit within view bounds (max ~1.8 to leave margin)
+        max_coord = np.abs(projected).max()
+        if max_coord > 1.8:
+            projected = projected * (1.8 / max_coord)
 
         # Update display
         renderer.update(projected, polytope.edges)
@@ -234,6 +288,16 @@ def main() -> None:
         update()
 
     polytope_combo.bind("<<ComboboxSelected>>", on_polytope_change)
+
+    def on_projection_change(_: tk.Event | None = None) -> None:
+        """Handle projection type change."""
+        update_distance_visibility()
+        update()
+
+    projection_combo.bind("<<ComboboxSelected>>", on_projection_change)
+
+    # Bind distance slider to update
+    distance_var.trace_add("write", lambda *_: update())
 
     # Create slider rows
     def create_slider_row(
