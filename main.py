@@ -1,16 +1,74 @@
 """Main entry point for the Polytope Visualiser application."""
 
+import ctypes
+import sys
 import tkinter as tk
 from tkinter import ttk
 
 import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 from polytopes import create_cube
 from transforms import apply_rotation, orthogonal_project
 from renderer import Renderer
+
+# Dark mode colors
+BG_COLOR = "#1a1a1a"
+FG_COLOR = "#e0e0e0"
+ACCENT_COLOR = "#2d2d2d"
+ENTRY_BG = "#333333"
+
+
+def enable_dark_title_bar(window: tk.Tk) -> None:
+    """Enable dark title bar on Windows 10/11."""
+    if sys.platform != "win32":
+        return
+
+    window.update()
+    DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+    hwnd = ctypes.windll.user32.GetParent(window.winfo_id())
+    value = ctypes.c_int(1)
+    ctypes.windll.dwmapi.DwmSetWindowAttribute(
+        hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value)
+    )
+
+
+def configure_dark_style() -> ttk.Style:
+    """Configure ttk styles for dark mode."""
+    style = ttk.Style()
+    style.theme_use("clam")
+
+    # Configure frame style
+    style.configure("TFrame", background=BG_COLOR)
+
+    # Configure label style
+    style.configure("TLabel", background=BG_COLOR, foreground=FG_COLOR)
+
+    # Configure combobox style
+    style.configure(
+        "TCombobox",
+        fieldbackground=ENTRY_BG,
+        background=ACCENT_COLOR,
+        foreground=FG_COLOR,
+        arrowcolor=FG_COLOR,
+    )
+    style.map(
+        "TCombobox",
+        fieldbackground=[("readonly", ENTRY_BG)],
+        selectbackground=[("readonly", ENTRY_BG)],
+        selectforeground=[("readonly", FG_COLOR)],
+    )
+
+    # Configure scale (slider) style
+    style.configure(
+        "TScale",
+        background=BG_COLOR,
+        troughcolor=ACCENT_COLOR,
+        sliderthickness=15,
+    )
+
+    return style
 
 
 def main() -> None:
@@ -22,6 +80,13 @@ def main() -> None:
     root = tk.Tk()
     root.title(f"{polytope.name} - Wireframe Visualizer")
     root.geometry("600x700")
+    root.configure(bg=BG_COLOR)
+
+    # Enable dark title bar on Windows
+    enable_dark_title_bar(root)
+
+    # Configure dark styles
+    configure_dark_style()
 
     # Top frame for future dropdowns (placeholder)
     top_frame = ttk.Frame(root, padding="10")
@@ -40,9 +105,10 @@ def main() -> None:
     projection_combo.set("Orthogonal")
     projection_combo.pack(side=tk.LEFT)
 
-    # Create matplotlib figure and embed in Tkinter
-    fig = Figure(figsize=(6, 6), dpi=100)
+    # Create matplotlib figure with dark background
+    fig = Figure(figsize=(6, 6), dpi=100, facecolor=BG_COLOR)
     ax = fig.add_subplot(111)
+    ax.set_facecolor(BG_COLOR)
 
     # Configure axes - no grid, no ticks, no axes lines
     ax.set_xlim(-2, 2)
@@ -55,7 +121,9 @@ def main() -> None:
     canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
     canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
-    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    canvas_widget = canvas.get_tk_widget()
+    canvas_widget.configure(bg=BG_COLOR, highlightthickness=0)
+    canvas_widget.pack(fill=tk.BOTH, expand=True)
 
     # Create renderer
     renderer = Renderer(ax)

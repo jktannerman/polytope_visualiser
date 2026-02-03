@@ -43,7 +43,7 @@ class Renderer:
         for i, j in edges:
             x_coords = [vertices_2d[i, 0], vertices_2d[j, 0]]
             y_coords = [vertices_2d[i, 1], vertices_2d[j, 1]]
-            (line,) = self.ax.plot(x_coords, y_coords, "b-", linewidth=1.5)
+            (line,) = self.ax.plot(x_coords, y_coords, color="#00BFFF", linewidth=1.5)
             self.lines.append(line)
 
         self.ax.figure.canvas.draw_idle()
