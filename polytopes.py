@@ -8,10 +8,10 @@ from numpy.typing import NDArray
 
 @dataclass
 class Polytope:
-    """A 3D polytope defined by vertices and edges.
+    """A polytope defined by vertices and edges.
 
     Attributes:
-        vertices: Array of shape (N, 3) containing 3D vertex coordinates.
+        vertices: Array of shape (N, D) containing D-dimensional vertex coordinates.
         edges: List of tuples (i, j) indicating which vertices to connect.
         name: Human-readable name for the polytope.
     """
@@ -19,6 +19,11 @@ class Polytope:
     vertices: NDArray[np.float64]
     edges: list[tuple[int, int]]
     name: str = "Polytope"
+
+    @property
+    def dim(self) -> int:
+        """Return the dimension of the polytope (3 for 3D, 4 for 4D, etc.)."""
+        return self.vertices.shape[1]
 
 
 def create_cube() -> Polytope:
@@ -92,3 +97,33 @@ def create_octahedron() -> Polytope:
     ]
 
     return Polytope(vertices=vertices, edges=edges, name="Octahedron")
+
+
+def create_tesseract() -> Polytope:
+    """Create a tesseract (4D hypercube) centered at the origin.
+
+    Returns:
+        Polytope with 16 vertices at (±1, ±1, ±1, ±1) and 32 edges.
+    """
+    # Generate all 16 vertices: all combinations of (±1, ±1, ±1, ±1)
+    vertices = np.array(
+        [
+            [x, y, z, w]
+            for x in [-1, 1]
+            for y in [-1, 1]
+            for z in [-1, 1]
+            for w in [-1, 1]
+        ],
+        dtype=np.float64,
+    )
+
+    # Edges connect vertices that differ in exactly one coordinate
+    edges: list[tuple[int, int]] = []
+    for i in range(16):
+        for j in range(i + 1, 16):
+            # Count how many coordinates differ
+            diff_count = np.sum(vertices[i] != vertices[j])
+            if diff_count == 1:
+                edges.append((i, j))
+
+    return Polytope(vertices=vertices, edges=edges, name="Tesseract")

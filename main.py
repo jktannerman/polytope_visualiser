@@ -9,8 +9,13 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from polytopes import create_cube, create_octahedron
-from transforms import apply_rotation, orthogonal_project
+from polytopes import create_cube, create_octahedron, create_tesseract
+from transforms import (
+    apply_rotation,
+    apply_rotation_4d,
+    orthogonal_project,
+    orthogonal_project_4d,
+)
 from renderer import Renderer
 
 # Dark mode colors
@@ -77,6 +82,7 @@ def main() -> None:
     polytope_factories = {
         "Cube": create_cube,
         "Octahedron": create_octahedron,
+        "Tesseract": create_tesseract,
     }
 
     # Create the initial polytope (use list for mutability in nested functions)
@@ -145,32 +151,86 @@ def main() -> None:
     slider_frame = ttk.Frame(root, padding="10")
     slider_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
-    # Variables to store slider values
-    rx_var = tk.DoubleVar(value=0)
-    ry_var = tk.DoubleVar(value=0)
-    rz_var = tk.DoubleVar(value=0)
+    # Slider configuration: (label, variable_name) for 3D and 4D
+    # 3D uses first 3 (XY, XZ, YZ correspond to Z, Y, X axis rotations)
+    # 4D uses all 6
+    slider_configs = [
+        ("XY Rotation", "rxy"),  # 3D: equivalent to Z-axis rotation
+        ("XZ Rotation", "rxz"),  # 3D: equivalent to Y-axis rotation
+        ("YZ Rotation", "ryz"),  # 3D: equivalent to X-axis rotation
+        ("XW Rotation", "rxw"),  # 4D only
+        ("YW Rotation", "ryw"),  # 4D only
+        ("ZW Rotation", "rzw"),  # 4D only
+    ]
+
+    # Variables to store slider values (all 6)
+    slider_vars: dict[str, tk.DoubleVar] = {}
+    for _, var_name in slider_configs:
+        slider_vars[var_name] = tk.DoubleVar(value=0)
+
+    # Storage for slider widgets (for show/hide)
+    slider_widgets: list[tuple[ttk.Label, ttk.Scale, ttk.Label]] = []
 
     def update(_: str | None = None) -> None:
         """Update the visualization when sliders change."""
         polytope = current_polytope[0]
 
-        # Get angles in radians
-        rx = np.radians(rx_var.get())
-        ry = np.radians(ry_var.get())
-        rz = np.radians(rz_var.get())
+        if polytope.dim == 4:
+            # 4D rotation and projection
+            rxy = np.radians(slider_vars["rxy"].get())
+            rxz = np.radians(slider_vars["rxz"].get())
+            rxw = np.radians(slider_vars["rxw"].get())
+            ryz = np.radians(slider_vars["ryz"].get())
+            ryw = np.radians(slider_vars["ryw"].get())
+            rzw = np.radians(slider_vars["rzw"].get())
 
-        # Apply rotation and projection
-        rotated = apply_rotation(polytope.vertices, rx, ry, rz)
-        projected = orthogonal_project(rotated)
+            rotated_4d = apply_rotation_4d(
+                polytope.vertices, rxy, rxz, rxw, ryz, ryw, rzw
+            )
+            rotated_3d = orthogonal_project_4d(rotated_4d)
+            projected = orthogonal_project(rotated_3d)
+        else:
+            # 3D rotation and projection
+            # Map XY/XZ/YZ plane rotations to X/Y/Z axis rotations
+            rx = np.radians(slider_vars["ryz"].get())  # YZ plane = X axis
+            ry = np.radians(slider_vars["rxz"].get())  # XZ plane = Y axis
+            rz = np.radians(slider_vars["rxy"].get())  # XY plane = Z axis
+
+            rotated = apply_rotation(polytope.vertices, rx, ry, rz)
+            projected = orthogonal_project(rotated)
 
         # Update display
         renderer.update(projected, polytope.edges)
         canvas.draw_idle()
 
+    def update_slider_visibility() -> None:
+        """Show/hide sliders based on current polytope dimension."""
+        polytope = current_polytope[0]
+        is_4d = polytope.dim == 4
+
+        for i, (label_widget, slider_widget, value_label) in enumerate(slider_widgets):
+            if i < 3 or is_4d:
+                # Show first 3 always, show all 6 for 4D
+                label_widget.grid()
+                slider_widget.grid()
+                value_label.grid()
+            else:
+                # Hide extra sliders for 3D
+                label_widget.grid_remove()
+                slider_widget.grid_remove()
+                value_label.grid_remove()
+
     def on_polytope_change(_: tk.Event | None = None) -> None:
         """Handle polytope selection change."""
         name = polytope_var.get()
         current_polytope[0] = polytope_factories[name]()
+
+        # Reset all sliders to 0
+        for var in slider_vars.values():
+            var.set(0)
+
+        # Update slider visibility
+        update_slider_visibility()
         update()
 
     polytope_combo.bind("<<ComboboxSelected>>", on_polytope_change)
@@ -178,11 +238,11 @@ def main() -> None:
     # Create slider rows
     def create_slider_row(
         parent: ttk.Frame, label: str, variable: tk.DoubleVar, row: int
-    ) -> ttk.Scale:
-        """Create a labeled slider row."""
-        ttk.Label(parent, text=f"{label}:", width=12).grid(
-            row=row, column=0, sticky=tk.W, pady=5
-        )
+    ) -> tuple[ttk.Label, ttk.Scale, ttk.Label]:
+        """Create a labeled slider row and return widgets for visibility control."""
+        label_widget = ttk.Label(parent, text=f"{label}:", width=12)
+        label_widget.grid(row=row, column=0, sticky=tk.W, pady=5)
+
         slider = ttk.Scale(
             parent,
             from_=0,
@@ -200,15 +260,18 @@ def main() -> None:
             value_label.config(text=f"{int(variable.get())}°")
 
         variable.trace_add("write", lambda *_: update_label())
-        return slider
+        return label_widget, slider, value_label
 
     # Configure grid columns
     slider_frame.columnconfigure(1, weight=1)
 
-    # Create the three rotation sliders
-    create_slider_row(slider_frame, "X Rotation", rx_var, 0)
-    create_slider_row(slider_frame, "Y Rotation", ry_var, 1)
-    create_slider_row(slider_frame, "Z Rotation", rz_var, 2)
+    # Create all 6 rotation sliders
+    for i, (label, var_name) in enumerate(slider_configs):
+        widgets = create_slider_row(slider_frame, label, slider_vars[var_name], i)
+        slider_widgets.append(widgets)
+
+    # Initialize slider visibility for the current polytope
+    update_slider_visibility()
 
     # Initial render
     update()
