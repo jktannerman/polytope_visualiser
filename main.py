@@ -9,7 +9,7 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
-from polytopes import create_cube
+from polytopes import create_cube, create_octahedron
 from transforms import apply_rotation, orthogonal_project
 from renderer import Renderer
 
@@ -73,12 +73,18 @@ def configure_dark_style() -> ttk.Style:
 
 def main() -> None:
     """Run the polytope visualizer application."""
-    # Create the polytope
-    polytope = create_cube()
+    # Polytope factory functions
+    polytope_factories = {
+        "Cube": create_cube,
+        "Octahedron": create_octahedron,
+    }
+
+    # Create the initial polytope (use list for mutability in nested functions)
+    current_polytope = [create_cube()]
 
     # Create main Tkinter window
     root = tk.Tk()
-    root.title(f"{polytope.name} - Wireframe Visualizer")
+    root.title("Wireframe Visualizer")
     root.geometry("600x700")
     root.configure(bg=BG_COLOR)
 
@@ -92,10 +98,17 @@ def main() -> None:
     top_frame = ttk.Frame(root, padding="10")
     top_frame.pack(fill=tk.X)
 
-    # Placeholder labels for future dropdowns
+    # Polytope dropdown
     ttk.Label(top_frame, text="Polytope:").pack(side=tk.LEFT, padx=(0, 5))
-    polytope_combo = ttk.Combobox(top_frame, values=["Cube"], state="readonly", width=15)
-    polytope_combo.set("Cube")
+    polytope_names = list(polytope_factories.keys())
+    polytope_var = tk.StringVar(value="Cube")
+    polytope_combo = ttk.Combobox(
+        top_frame,
+        values=polytope_names,
+        state="readonly",
+        width=15,
+        textvariable=polytope_var,
+    )
     polytope_combo.pack(side=tk.LEFT, padx=(0, 20))
 
     ttk.Label(top_frame, text="Projection:").pack(side=tk.LEFT, padx=(0, 5))
@@ -139,6 +152,8 @@ def main() -> None:
 
     def update(_: str | None = None) -> None:
         """Update the visualization when sliders change."""
+        polytope = current_polytope[0]
+
         # Get angles in radians
         rx = np.radians(rx_var.get())
         ry = np.radians(ry_var.get())
@@ -151,6 +166,14 @@ def main() -> None:
         # Update display
         renderer.update(projected, polytope.edges)
         canvas.draw_idle()
+
+    def on_polytope_change(_: tk.Event | None = None) -> None:
+        """Handle polytope selection change."""
+        name = polytope_var.get()
+        current_polytope[0] = polytope_factories[name]()
+        update()
+
+    polytope_combo.bind("<<ComboboxSelected>>", on_polytope_change)
 
     # Create slider rows
     def create_slider_row(

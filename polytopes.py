@@ -61,3 +61,34 @@ def create_cube() -> Polytope:
     ]
 
     return Polytope(vertices=vertices, edges=edges, name="Cube")
+
+
+def create_octahedron() -> Polytope:
+    """Create a regular octahedron centered at the origin.
+
+    Returns:
+        Polytope with 6 vertices at (±1, 0, 0), (0, ±1, 0), (0, 0, ±1) and 12 edges.
+    """
+    vertices = np.array(
+        [
+            [1, 0, 0],   # 0: +X
+            [-1, 0, 0],  # 1: -X
+            [0, 1, 0],   # 2: +Y
+            [0, -1, 0],  # 3: -Y
+            [0, 0, 1],   # 4: +Z
+            [0, 0, -1],  # 5: -Z
+        ],
+        dtype=np.float64,
+    )
+
+    # Each vertex connects to 4 others (all except its opposite)
+    edges = [
+        # Edges from +X vertex
+        (0, 2), (0, 3), (0, 4), (0, 5),
+        # Edges from -X vertex
+        (1, 2), (1, 3), (1, 4), (1, 5),
+        # Remaining edges (connecting Y and Z vertices)
+        (2, 4), (2, 5), (3, 4), (3, 5),
+    ]
+
+    return Polytope(vertices=vertices, edges=edges, name="Octahedron")
