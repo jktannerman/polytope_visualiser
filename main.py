@@ -22,6 +22,7 @@ from polytopes import (
 from transforms import (
     apply_rotation,
     apply_rotation_4d,
+    max_projected_radius,
     orthogonal_project,
     orthogonal_project_4d,
     perspective_project,
@@ -149,7 +150,7 @@ def main() -> None:
     distance_var = tk.DoubleVar(value=4.0)
     distance_slider = ttk.Scale(
         top_frame,
-        from_=2.5,
+        from_=1.5,
         to=10.0,
         orient=tk.HORIZONTAL,
         variable=distance_var,
@@ -173,18 +174,17 @@ def main() -> None:
 
     # Create matplotlib figure with dark background
     fig = Figure(figsize=(6, 6), dpi=100, facecolor=BG_COLOR)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
     ax = fig.add_subplot(111)
     ax.set_facecolor(BG_COLOR)
 
     # Configure axes - no grid, no ticks, no axes lines
-    ax.set_xlim(-2, 2)
-    ax.set_ylim(-2, 2)
     ax.set_aspect("equal")
     ax.axis("off")
 
     # Create canvas and embed in window
     canvas_frame = ttk.Frame(root)
-    canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    canvas_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
 
     canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
     canvas_widget = canvas.get_tk_widget()
@@ -262,10 +262,13 @@ def main() -> None:
             else:
                 projected = orthogonal_project(rotated)
 
-        # Normalize to fit within view bounds (max ~1.8 to leave margin)
-        max_coord = np.abs(projected).max()
-        if max_coord > 1.8:
-            projected = projected * (1.8 / max_coord)
+        # Set axis limits analytically based on projection bounds
+        r_max = max_projected_radius(
+            projection_var.get(), polytope.dim, distance
+        )
+        margin = r_max * 1.05
+        ax.set_xlim(-margin, margin)
+        ax.set_ylim(-margin, margin)
 
         # Update display
         renderer.update(projected, polytope.edges)

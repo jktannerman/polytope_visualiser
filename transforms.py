@@ -345,3 +345,31 @@ def perspective_project_4d(
         vertices_4d[:, 1] * scale,
         vertices_4d[:, 2] * scale,
     ])
+
+
+def max_projected_radius(projection: str, dim: int, distance: float) -> float:
+    """Compute the analytical maximum 2D projected radius for unit-sphere vertices.
+
+    All polytope vertices lie on a unit hypersphere (radius 1). The maximum 2D
+    projected radius depends only on the projection type, source dimension, and
+    camera distance -- it is rotation-invariant.
+
+    Args:
+        projection: Projection type, either "Orthogonal" or "Perspective".
+        dim: Source dimension of the polytope (3 or 4).
+        distance: Camera distance for perspective projection (ignored for
+            orthogonal).
+
+    Returns:
+        The maximum possible 2D radius after projection.
+    """
+    if projection == "Orthogonal":
+        return 1.0
+
+    # Perspective projection
+    if dim == 3:
+        # 3D perspective: r_max = d / sqrt(d^2 - 1), requires d > 1
+        return distance / np.sqrt(distance * distance - 1.0)
+    else:
+        # 4D double perspective: r_max = d / sqrt(d^2 - 2), requires d > sqrt(2)
+        return distance / np.sqrt(distance * distance - 2.0)
