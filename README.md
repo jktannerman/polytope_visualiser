@@ -4,8 +4,8 @@ A wireframe visualiser for 3D and 4D polytopes with interactive rotation control
 
 ## Features
 
-- **3D Polytopes**: Cube, Octahedron
-- **4D Polytopes**: Tesseract (hypercube)
+- **3D Polytopes**: All 5 Platonic solids (Tetrahedron, Cube, Octahedron, Icosahedron, Dodecahedron)
+- **4D Polytopes**: 5-cell, Tesseract, 16-cell
 - **Projection Modes**: Orthogonal and perspective projection
 - **Interactive Rotation**: Real-time rotation via sliders
 - **Dynamic UI**: Automatically shows 3 sliders for 3D shapes, 6 for 4D
