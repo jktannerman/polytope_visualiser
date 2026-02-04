@@ -30,12 +30,19 @@ class AxesIndicator:
         self.ax = ax
         self.artists: list[Any] = []
 
-    def update(self, basis_2d: NDArray[np.float64], dim: int) -> None:
+    def update(
+        self,
+        basis_2d: NDArray[np.float64],
+        depths: NDArray[np.float64],
+        dim: int,
+    ) -> None:
         """Redraw the axes indicator arrows and labels.
 
         Args:
             basis_2d: Array of shape (dim, 2) — each row is the 2D projected
                 tip of a standard basis vector after rotation.
+            depths: 1D array of length dim — the Z component of each rotated
+                basis vector (before 2D projection), used for depth cueing.
             dim: Number of axes to draw (3 or 4).
         """
         # Remove old artists
@@ -48,6 +55,10 @@ class AxesIndicator:
         for i in range(dim):
             tip_x, tip_y = basis_2d[i, 0], basis_2d[i, 1]
 
+            # Depth cueing: opacity and linestyle based on Z depth
+            alpha = float(np.clip(0.25 + 0.75 * (depths[i] + 1) / 2, 0.25, 1.0))
+            linestyle = "--" if depths[i] < 0 else "-"
+
             # Draw arrow from origin to tip
             ann = self.ax.annotate(
                 "",
@@ -58,7 +69,9 @@ class AxesIndicator:
                     color=colors[i],
                     lw=2,
                     mutation_scale=12,
+                    linestyle=linestyle,
                 ),
+                alpha=alpha,
             )
             self.artists.append(ann)
 
@@ -72,6 +85,7 @@ class AxesIndicator:
                 fontweight="bold",
                 ha="center",
                 va="center",
+                alpha=alpha,
             )
             self.artists.append(label)
 

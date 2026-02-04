@@ -9,6 +9,7 @@ A wireframe visualiser for 3D and 4D polytopes with interactive rotation control
 - **Projection Modes**: Orthogonal and perspective projection
 - **Interactive Rotation**: Real-time rotation via sliders
 - **Dynamic UI**: Automatically shows 3 sliders for 3D shapes, 6 for 4D
+- **Depth-Cued Axes Indicator**: Axis arrows fade and become dashed when pointing away from the viewer
 - **Dark Mode**: Native dark theme with dark title bar on Windows
 
 ## Running
@@ -66,6 +67,15 @@ The `max_projected_radius()` function in `transforms.py` computes these bounds. 
 - Rotation never changes the apparent size of the polytope
 
 The distance slider minimum is `1.5`, chosen to stay safely above the `√2 ≈ 1.414` constraint for 4D double perspective.
+
+### Axes Indicator Depth Cueing
+
+The axes indicator overlay uses depth cues to convey which axes point towards or away from the viewer:
+
+- **Opacity**: The Z component of each rotated basis vector is linearly mapped from `[-1, +1]` to alpha `[0.25, 1.0]`. Axes pointing towards the viewer are fully opaque; axes pointing away are semi-transparent.
+- **Line style**: Axes with negative Z (pointing away) are drawn with dashed lines; axes with non-negative Z (pointing towards) use solid lines.
+
+Both cues are applied to the arrow and its label.
 
 ### Rotation Order
 

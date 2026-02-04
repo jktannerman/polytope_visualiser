@@ -172,26 +172,22 @@ def main() -> None:
     # Initially hide distance controls (Orthogonal is default)
     update_distance_visibility()
 
-    # Create matplotlib figure with dark background and GridSpec layout
+    # Create matplotlib figure with dark background
     fig = Figure(figsize=(7.5, 6), dpi=100, facecolor=BG_COLOR)
-    gs = fig.add_gridspec(1, 2, width_ratios=[1, 5], wspace=0.0,
-                          left=0, right=1, top=1, bottom=0)
 
-    # Small left panel for axes indicator
-    ax_indicator = fig.add_subplot(gs[0])
-    ax_indicator.set_facecolor(BG_COLOR)
+    # Main polytope view — full figure, centered
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_facecolor(BG_COLOR)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    # Axes indicator overlay at left-center
+    ax_indicator = fig.add_axes([0.0, 0.35, 0.15, 0.3])
+    ax_indicator.set_facecolor("none")
     ax_indicator.set_aspect("equal")
     ax_indicator.axis("off")
     ax_indicator.set_xlim(-1.5, 1.5)
     ax_indicator.set_ylim(-1.5, 1.5)
-
-    # Main polytope view
-    ax = fig.add_subplot(gs[1])
-    ax.set_facecolor(BG_COLOR)
-
-    # Configure axes - no grid, no ticks, no axes lines
-    ax.set_aspect("equal")
-    ax.axis("off")
 
     # Create canvas and embed in window
     canvas_frame = ttk.Frame(root)
@@ -266,8 +262,9 @@ def main() -> None:
                 np.eye(4), rxy, rxz, rxw, ryz, ryw, rzw
             )
             basis_3d = orthogonal_project_4d(rotated_basis_4d)
+            depths = basis_3d[:, 2]
             basis_2d = orthogonal_project(basis_3d)
-            axes_indicator.update(basis_2d, dim=4)
+            axes_indicator.update(basis_2d, depths, dim=4)
         else:
             # 3D rotation and projection
             # Map XY/XZ/YZ plane rotations to X/Y/Z axis rotations
@@ -284,8 +281,9 @@ def main() -> None:
 
             # Axes indicator: always orthogonal projection of rotated basis
             rotated_basis_3d = apply_rotation(np.eye(3), rx, ry, rz)
+            depths = rotated_basis_3d[:, 2]
             basis_2d = orthogonal_project(rotated_basis_3d)
-            axes_indicator.update(basis_2d, dim=3)
+            axes_indicator.update(basis_2d, depths, dim=3)
 
         # Set axis limits analytically based on projection bounds
         r_max = max_projected_radius(
