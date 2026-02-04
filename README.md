@@ -5,11 +5,12 @@ A wireframe visualiser for 3D and 4D polytopes with interactive rotation control
 ## Features
 
 - **3D Polytopes**: All 5 Platonic solids (Tetrahedron, Cube, Octahedron, Icosahedron, Dodecahedron)
-- **4D Polytopes**: 5-cell, Tesseract, 16-cell
+- **4D Polytopes**: All 6 regular convex 4-polytopes (5-cell, Tesseract, 16-cell, 24-cell, 120-cell, 600-cell)
 - **Projection Modes**: Orthogonal and perspective projection
-- **Interactive Rotation**: Real-time rotation via sliders
+- **Interactive Rotation**: Real-time rotation via sliders or by typing exact angles/distances into the value fields
 - **Dynamic UI**: Automatically shows 3 sliders for 3D shapes, 6 for 4D
 - **Depth-Cued Axes Indicator**: Axis arrows fade and become dashed when pointing away from the viewer
+- **W-Depth Hue Gradient**: 4D edges smoothly shift colour from teal (ana / high W) through cyan to dark blue (kata / low W), toggled via checkbox
 - **Dark Mode**: Native dark theme with dark title bar on Windows
 
 ## Running
@@ -76,6 +77,17 @@ The axes indicator overlay uses depth cues to convey which axes point towards or
 - **Line style**: Axes with negative Z (pointing away) are drawn with dashed lines; axes with non-negative Z (pointing towards) use solid lines.
 
 Both cues are applied to the arrow and its label.
+
+### W-Depth Hue Gradient
+
+For 4D polytopes, the "W-depth hue" checkbox enables a per-edge colour gradient that encodes each vertex's position along the W axis:
+
+- Each edge is subdivided into 16 segments with linearly interpolated W values.
+- W values are normalised to `t_signed ∈ [-1, +1]` across all vertices.
+- The hue is computed in HSV space as `H = cyan_hue - shift * t_signed`, where `cyan_hue ≈ 0.542` (195°) and `shift = 0.20` (~72°). This produces an equal angular displacement from cyan: green for high W (ana) and purple for low W (kata).
+- When "Depth opacity" is also enabled, each segment's alpha is interpolated from the Z-depth of its endpoints, combining both visual cues.
+
+The two tunable constants `_CYAN_HUE` and `_W_HUE_SHIFT` in `renderer.py` control the centre hue and maximum displacement.
 
 ### Rotation Order
 

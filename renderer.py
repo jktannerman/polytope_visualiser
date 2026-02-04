@@ -1,11 +1,16 @@
 """Matplotlib rendering logic for wireframe display."""
 
+import colorsys
 from typing import Any
 
 from matplotlib.axes import Axes
+from matplotlib.collections import LineCollection
 from matplotlib.lines import Line2D
 import numpy as np
 from numpy.typing import NDArray
+
+_CYAN_HUE = 195.0 / 360.0  # H of #00BFFF
+_W_HUE_SHIFT = 0.10         # max hue displacement (0-1 scale, 0.20 ≈ 72°)
 
 # Axis colours: X=red, Y=green, Z=blue, W=yellow
 _AXIS_COLORS_3D = ["#FF4444", "#44FF44", "#4488FF"]
@@ -108,12 +113,14 @@ class Renderer:
         """
         self.ax = ax
         self.lines: list[Line2D] = []
+        self._collection: LineCollection | None = None
 
     def update(
         self,
         vertices_2d: NDArray[np.float64],
         edges: list[tuple[int, int]],
         vertex_depths: NDArray[np.float64] | None = None,
+        vertex_w_depths: NDArray[np.float64] | None = None,
     ) -> None:
         """Update the wireframe display with new vertex positions.
 
@@ -123,11 +130,17 @@ class Renderer:
             vertex_depths: Optional 1D array of per-vertex Z depths. When
                 provided, edges are drawn with opacity based on average
                 endpoint depth (closer = more opaque).
+            vertex_w_depths: Optional 1D array of per-vertex W depths. When
+                provided, edges are coloured with a hue gradient based on W
+                depth (green at ana/high W, purple at kata/low W).
         """
-        # Remove existing lines
+        # Remove existing artists
         for line in self.lines:
             line.remove()
         self.lines.clear()
+        if self._collection is not None:
+            self._collection.remove()
+            self._collection = None
 
         # Precompute depth-to-alpha mapping
         if vertex_depths is not None:
@@ -137,20 +150,76 @@ class Renderer:
         else:
             z_min = z_max = z_range = 0.0
 
-        # Draw new edges
-        for i, j in edges:
-            x_coords = [vertices_2d[i, 0], vertices_2d[j, 0]]
-            y_coords = [vertices_2d[i, 1], vertices_2d[j, 1]]
+        if vertex_w_depths is not None:
+            # W-depth hue gradient path using LineCollection
+            w_min = float(vertex_w_depths.min())
+            w_max = float(vertex_w_depths.max())
+            w_range = w_max - w_min
 
-            alpha = 1.0
-            if vertex_depths is not None and z_range > 0:
-                avg_depth = (vertex_depths[i] + vertex_depths[j]) / 2
-                t = (avg_depth - z_min) / z_range
-                alpha = 0.3 + 0.7 * t
+            n_sub = 16
+            segments: list[list[tuple[float, float]]] = []
+            colors: list[tuple[float, float, float, float]] = []
 
-            (line,) = self.ax.plot(
-                x_coords, y_coords, color="#00BFFF", linewidth=1.5, alpha=alpha
-            )
-            self.lines.append(line)
+            for i, j in edges:
+                p0 = vertices_2d[i]
+                p1 = vertices_2d[j]
+                w0 = float(vertex_w_depths[i])
+                w1 = float(vertex_w_depths[j])
+
+                # Z-depth alpha per vertex
+                if vertex_depths is not None and z_range > 0:
+                    z_t_i = (vertex_depths[i] - z_min) / z_range
+                    z_t_j = (vertex_depths[j] - z_min) / z_range
+                    alpha_i = 0.3 + 0.7 * float(z_t_i)
+                    alpha_j = 0.3 + 0.7 * float(z_t_j)
+                else:
+                    alpha_i = 1.0
+                    alpha_j = 1.0
+
+                for k in range(n_sub):
+                    frac0 = k / n_sub
+                    frac1 = (k + 1) / n_sub
+                    frac_mid = (frac0 + frac1) / 2
+
+                    seg_p0 = p0 + frac0 * (p1 - p0)
+                    seg_p1 = p0 + frac1 * (p1 - p0)
+                    segments.append(
+                        [(float(seg_p0[0]), float(seg_p0[1])),
+                         (float(seg_p1[0]), float(seg_p1[1]))]
+                    )
+
+                    # Interpolate W at midpoint
+                    w_mid = w0 + frac_mid * (w1 - w0)
+                    if w_range > 0:
+                        t_signed = 2.0 * (w_mid - w_min) / w_range - 1.0
+                    else:
+                        t_signed = 0.0
+
+                    hue = (_CYAN_HUE - _W_HUE_SHIFT * t_signed) % 1.0
+                    r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+
+                    # Interpolate alpha at midpoint
+                    alpha = alpha_i + frac_mid * (alpha_j - alpha_i)
+                    colors.append((r, g, b, alpha))
+
+            lc = LineCollection(segments, colors=colors, linewidths=1.5)
+            self.ax.add_collection(lc)
+            self._collection = lc
+        else:
+            # Standard uniform-colour path
+            for i, j in edges:
+                x_coords = [vertices_2d[i, 0], vertices_2d[j, 0]]
+                y_coords = [vertices_2d[i, 1], vertices_2d[j, 1]]
+
+                alpha = 1.0
+                if vertex_depths is not None and z_range > 0:
+                    avg_depth = (vertex_depths[i] + vertex_depths[j]) / 2
+                    t = (avg_depth - z_min) / z_range
+                    alpha = 0.3 + 0.7 * t
+
+                (line,) = self.ax.plot(
+                    x_coords, y_coords, color="#00BFFF", linewidth=1.5, alpha=alpha
+                )
+                self.lines.append(line)
 
         self.ax.figure.canvas.draw_idle()

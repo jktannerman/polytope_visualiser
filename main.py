@@ -10,8 +10,11 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 from polytopes import (
+    create_120cell,
     create_16cell,
+    create_24cell,
     create_5cell,
+    create_600cell,
     create_cube,
     create_dodecahedron,
     create_icosahedron,
@@ -107,6 +110,9 @@ def main() -> None:
         "5-cell": create_5cell,
         "Tesseract": create_tesseract,
         "16-cell": create_16cell,
+        "24-cell": create_24cell,
+        "120-cell": create_120cell,
+        "600-cell": create_600cell,
     }
 
     # Create the initial polytope (use list for mutability in nested functions)
@@ -162,6 +168,15 @@ def main() -> None:
     )
     depth_opacity_check.pack(side=tk.LEFT, padx=(0, 20))
 
+    # W-depth hue checkbox (visible only for 4D polytopes)
+    w_hue_var = tk.BooleanVar(value=False)
+    w_hue_check = ttk.Checkbutton(
+        top_frame,
+        text="W-depth hue",
+        variable=w_hue_var,
+        command=lambda: update(),
+    )
+
     # Distance slider (for perspective projection)
     distance_label = ttk.Label(top_frame, text="Distance:")
     distance_var = tk.DoubleVar(value=4.0)
@@ -173,18 +188,39 @@ def main() -> None:
         variable=distance_var,
         length=100,
     )
-    distance_value_label = ttk.Label(top_frame, text="4.0", width=4)
+    distance_entry = tk.Entry(
+        top_frame, width=5, justify=tk.RIGHT,
+        bg=ENTRY_BG, fg=FG_COLOR, insertbackground=FG_COLOR,
+        relief=tk.FLAT, highlightthickness=1, highlightcolor="#555555",
+        highlightbackground=ACCENT_COLOR,
+    )
+    distance_entry.insert(0, "4.0")
+
+    def _commit_distance(_: tk.Event | None = None) -> None:
+        text = distance_entry.get().strip()
+        try:
+            val = max(1.5, min(10.0, float(text)))
+        except ValueError:
+            val = distance_var.get()
+        distance_var.set(val)
+        distance_entry.delete(0, tk.END)
+        distance_entry.insert(0, f"{val:.1f}")
+
+    distance_entry.bind("<Return>", _commit_distance)
+    distance_entry.bind("<FocusOut>", _commit_distance)
+    distance_entry.bind("<FocusIn>", lambda _: distance_entry.select_range(0, tk.END))
+    distance_entry.bind("<Escape>", lambda _: root.focus_set())
 
     def update_distance_visibility() -> None:
         """Show/hide distance slider based on projection type."""
         if projection_var.get() == "Perspective":
             distance_label.pack(side=tk.LEFT, padx=(0, 5))
             distance_slider.pack(side=tk.LEFT, padx=(0, 5))
-            distance_value_label.pack(side=tk.LEFT)
+            distance_entry.pack(side=tk.LEFT)
         else:
             distance_label.pack_forget()
             distance_slider.pack_forget()
-            distance_value_label.pack_forget()
+            distance_entry.pack_forget()
 
     # Initially hide distance controls (Orthogonal is default)
     update_distance_visibility()
@@ -241,7 +277,7 @@ def main() -> None:
         slider_vars[var_name] = tk.DoubleVar(value=0)
 
     # Storage for slider widgets (for show/hide)
-    slider_widgets: list[tuple[ttk.Label, ttk.Scale, ttk.Label]] = []
+    slider_widgets: list[tuple[ttk.Label, ttk.Scale, tk.Entry]] = []
 
     def update(_: str | None = None) -> None:
         """Update the visualization when sliders change."""
@@ -249,8 +285,10 @@ def main() -> None:
         use_perspective = projection_var.get() == "Perspective"
         distance = distance_var.get()
 
-        # Update distance value label
-        distance_value_label.config(text=f"{distance:.1f}")
+        # Update distance entry (only when not being edited)
+        if root.focus_get() != distance_entry:
+            distance_entry.delete(0, tk.END)
+            distance_entry.insert(0, f"{distance:.1f}")
 
         if polytope.dim == 4:
             # 4D rotation and projection
@@ -276,6 +314,9 @@ def main() -> None:
 
             # Vertex depths for edge opacity (Z of 3D intermediate)
             vertex_depths = rotated_3d[:, 2]
+
+            # W depths for hue gradient (W of rotated 4D vertices)
+            w_depths = rotated_4d[:, 3]
 
             # Axes indicator: always orthogonal projection of rotated basis
             rotated_basis_4d = apply_rotation_4d(
@@ -321,25 +362,32 @@ def main() -> None:
             projected,
             polytope.edges,
             vertex_depths if depth_opacity_var.get() else None,
+            w_depths if (polytope.dim == 4 and w_hue_var.get()) else None,
         )
         canvas.draw_idle()
 
     def update_slider_visibility() -> None:
-        """Show/hide sliders based on current polytope dimension."""
+        """Show/hide sliders and 4D controls based on current polytope dimension."""
         polytope = current_polytope[0]
         is_4d = polytope.dim == 4
 
-        for i, (label_widget, slider_widget, value_label) in enumerate(slider_widgets):
+        for i, (label_widget, slider_widget, value_entry) in enumerate(slider_widgets):
             if i < 3 or is_4d:
                 # Show first 3 always, show all 6 for 4D
                 label_widget.grid()
                 slider_widget.grid()
-                value_label.grid()
+                value_entry.grid()
             else:
                 # Hide extra sliders for 3D
                 label_widget.grid_remove()
                 slider_widget.grid_remove()
-                value_label.grid_remove()
+                value_entry.grid_remove()
+
+        # Show/hide W-depth hue checkbox
+        if is_4d:
+            w_hue_check.pack(side=tk.LEFT, padx=(0, 20))
+        else:
+            w_hue_check.pack_forget()
 
     def on_polytope_change(_: tk.Event | None = None) -> None:
         """Handle polytope selection change."""
@@ -369,8 +417,8 @@ def main() -> None:
     # Create slider rows
     def create_slider_row(
         parent: ttk.Frame, label: str, variable: tk.DoubleVar, row: int
-    ) -> tuple[ttk.Label, ttk.Scale, ttk.Label]:
-        """Create a labeled slider row and return widgets for visibility control."""
+    ) -> tuple[ttk.Label, ttk.Scale, tk.Entry]:
+        """Create a labeled slider row with an editable value entry."""
         label_widget = ttk.Label(parent, text=f"{label}:", width=12)
         label_widget.grid(row=row, column=0, sticky=tk.W, pady=5)
 
@@ -384,14 +432,37 @@ def main() -> None:
         )
         slider.grid(row=row, column=1, sticky=tk.EW, padx=(5, 10), pady=5)
 
-        value_label = ttk.Label(parent, text="0°", width=5)
-        value_label.grid(row=row, column=2, sticky=tk.E, pady=5)
+        value_entry = tk.Entry(
+            parent, width=5, justify=tk.RIGHT,
+            bg=ENTRY_BG, fg=FG_COLOR, insertbackground=FG_COLOR,
+            relief=tk.FLAT, highlightthickness=1, highlightcolor="#555555",
+            highlightbackground=ACCENT_COLOR,
+        )
+        value_entry.grid(row=row, column=2, sticky=tk.E, pady=5)
+        value_entry.insert(0, "0°")
 
-        def update_label(_: str | None = None) -> None:
-            value_label.config(text=f"{int(variable.get())}°")
+        def sync_entry(*_: object) -> None:
+            if root.focus_get() != value_entry:
+                value_entry.delete(0, tk.END)
+                value_entry.insert(0, f"{int(variable.get())}°")
 
-        variable.trace_add("write", lambda *_: update_label())
-        return label_widget, slider, value_label
+        def commit_entry(_: tk.Event | None = None) -> None:
+            text = value_entry.get().strip().rstrip("°").strip()
+            try:
+                val = max(0.0, min(360.0, float(text)))
+            except ValueError:
+                val = variable.get()
+            variable.set(val)
+            value_entry.delete(0, tk.END)
+            value_entry.insert(0, f"{int(variable.get())}°")
+            update()
+
+        variable.trace_add("write", sync_entry)
+        value_entry.bind("<Return>", commit_entry)
+        value_entry.bind("<FocusOut>", commit_entry)
+        value_entry.bind("<FocusIn>", lambda _: value_entry.select_range(0, tk.END))
+        value_entry.bind("<Escape>", lambda _: root.focus_set())
+        return label_widget, slider, value_entry
 
     # Configure grid columns
     slider_frame.columnconfigure(1, weight=1)
