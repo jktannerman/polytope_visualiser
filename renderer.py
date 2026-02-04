@@ -113,23 +113,44 @@ class Renderer:
         self,
         vertices_2d: NDArray[np.float64],
         edges: list[tuple[int, int]],
+        vertex_depths: NDArray[np.float64] | None = None,
     ) -> None:
         """Update the wireframe display with new vertex positions.
 
         Args:
             vertices_2d: Array of shape (N, 2) with projected 2D coordinates.
             edges: List of tuples (i, j) indicating which vertices to connect.
+            vertex_depths: Optional 1D array of per-vertex Z depths. When
+                provided, edges are drawn with opacity based on average
+                endpoint depth (closer = more opaque).
         """
         # Remove existing lines
         for line in self.lines:
             line.remove()
         self.lines.clear()
 
+        # Precompute depth-to-alpha mapping
+        if vertex_depths is not None:
+            z_min = float(vertex_depths.min())
+            z_max = float(vertex_depths.max())
+            z_range = z_max - z_min
+        else:
+            z_min = z_max = z_range = 0.0
+
         # Draw new edges
         for i, j in edges:
             x_coords = [vertices_2d[i, 0], vertices_2d[j, 0]]
             y_coords = [vertices_2d[i, 1], vertices_2d[j, 1]]
-            (line,) = self.ax.plot(x_coords, y_coords, color="#00BFFF", linewidth=1.5)
+
+            alpha = 1.0
+            if vertex_depths is not None and z_range > 0:
+                avg_depth = (vertex_depths[i] + vertex_depths[j]) / 2
+                t = (avg_depth - z_min) / z_range
+                alpha = 0.3 + 0.7 * t
+
+            (line,) = self.ax.plot(
+                x_coords, y_coords, color="#00BFFF", linewidth=1.5, alpha=alpha
+            )
             self.lines.append(line)
 
         self.ax.figure.canvas.draw_idle()

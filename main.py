@@ -85,6 +85,13 @@ def configure_dark_style() -> ttk.Style:
         sliderthickness=15,
     )
 
+    # Configure checkbutton style
+    style.configure(
+        "TCheckbutton",
+        background=BG_COLOR,
+        foreground=FG_COLOR,
+    )
+
     return style
 
 
@@ -144,6 +151,16 @@ def main() -> None:
         textvariable=projection_var,
     )
     projection_combo.pack(side=tk.LEFT, padx=(0, 20))
+
+    # Depth opacity checkbox
+    depth_opacity_var = tk.BooleanVar(value=False)
+    depth_opacity_check = ttk.Checkbutton(
+        top_frame,
+        text="Depth opacity",
+        variable=depth_opacity_var,
+        command=lambda: update(),
+    )
+    depth_opacity_check.pack(side=tk.LEFT, padx=(0, 20))
 
     # Distance slider (for perspective projection)
     distance_label = ttk.Label(top_frame, text="Distance:")
@@ -257,6 +274,9 @@ def main() -> None:
                 rotated_3d = orthogonal_project_4d(rotated_4d)
                 projected = orthogonal_project(rotated_3d)
 
+            # Vertex depths for edge opacity (Z of 3D intermediate)
+            vertex_depths = rotated_3d[:, 2]
+
             # Axes indicator: always orthogonal projection of rotated basis
             rotated_basis_4d = apply_rotation_4d(
                 np.eye(4), rxy, rxz, rxw, ryz, ryw, rzw
@@ -279,6 +299,9 @@ def main() -> None:
             else:
                 projected = orthogonal_project(rotated)
 
+            # Vertex depths for edge opacity (Z of rotated 3D vertices)
+            vertex_depths = rotated[:, 2]
+
             # Axes indicator: always orthogonal projection of rotated basis
             rotated_basis_3d = apply_rotation(np.eye(3), rx, ry, rz)
             depths = rotated_basis_3d[:, 2]
@@ -294,7 +317,11 @@ def main() -> None:
         ax.set_ylim(-margin, margin)
 
         # Update display
-        renderer.update(projected, polytope.edges)
+        renderer.update(
+            projected,
+            polytope.edges,
+            vertex_depths if depth_opacity_var.get() else None,
+        )
         canvas.draw_idle()
 
     def update_slider_visibility() -> None:
