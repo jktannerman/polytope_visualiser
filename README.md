@@ -49,6 +49,24 @@ py -3.13 polytope_visualiser/main.py
 
 **Perspective projection**: Applies depth-based scaling before dropping coordinates, creating a sense of depth where closer vertices appear larger.
 
+### Axis Limits and Projection Bounds
+
+The 2D axis limits are set **analytically** rather than by rescaling vertex coordinates on the fly. All polytope vertices lie on a unit hypersphere (radius 1), so the maximum projected radius depends only on the projection type, dimension, and camera distance — not on rotation.
+
+| Pipeline | Max projected radius | Constraint |
+|----------|---------------------|------------|
+| Orthogonal (3D or 4D) | `1.0` | None |
+| 3D perspective | `d / sqrt(d² - 1)` | `d > 1` |
+| 4D double perspective | `d / sqrt(d² - 2)` | `d > √2` |
+
+The `max_projected_radius()` function in `transforms.py` computes these bounds. The result is applied each frame with a 5% margin (`r_max * 1.05`) to set `ax.set_xlim` / `ax.set_ylim`. This ensures:
+- No vertex ever clips outside the canvas
+- The polytope fills the canvas (no large empty margins)
+- Changing distance smoothly rescales the axes without jumps
+- Rotation never changes the apparent size of the polytope
+
+The distance slider minimum is `1.5`, chosen to stay safely above the `√2 ≈ 1.414` constraint for 4D double perspective.
+
 ### Rotation Order
 
 The 4D rotation order matters. Since projection discards Z and W, rotations that only affect Z/W (like ZW) must be applied early so subsequent rotations can propagate their effects into X/Y.

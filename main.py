@@ -28,7 +28,7 @@ from transforms import (
     perspective_project,
     perspective_project_4d,
 )
-from renderer import Renderer
+from renderer import AxesIndicator, Renderer
 
 # Dark mode colors
 BG_COLOR = "#1a1a1a"
@@ -108,7 +108,7 @@ def main() -> None:
     # Create main Tkinter window
     root = tk.Tk()
     root.title("Wireframe Visualizer")
-    root.geometry("600x700")
+    root.geometry("750x700")
     root.configure(bg=BG_COLOR)
 
     # Enable dark title bar on Windows
@@ -172,10 +172,21 @@ def main() -> None:
     # Initially hide distance controls (Orthogonal is default)
     update_distance_visibility()
 
-    # Create matplotlib figure with dark background
-    fig = Figure(figsize=(6, 6), dpi=100, facecolor=BG_COLOR)
-    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    ax = fig.add_subplot(111)
+    # Create matplotlib figure with dark background and GridSpec layout
+    fig = Figure(figsize=(7.5, 6), dpi=100, facecolor=BG_COLOR)
+    gs = fig.add_gridspec(1, 2, width_ratios=[1, 5], wspace=0.0,
+                          left=0, right=1, top=1, bottom=0)
+
+    # Small left panel for axes indicator
+    ax_indicator = fig.add_subplot(gs[0])
+    ax_indicator.set_facecolor(BG_COLOR)
+    ax_indicator.set_aspect("equal")
+    ax_indicator.axis("off")
+    ax_indicator.set_xlim(-1.5, 1.5)
+    ax_indicator.set_ylim(-1.5, 1.5)
+
+    # Main polytope view
+    ax = fig.add_subplot(gs[1])
     ax.set_facecolor(BG_COLOR)
 
     # Configure axes - no grid, no ticks, no axes lines
@@ -191,8 +202,9 @@ def main() -> None:
     canvas_widget.configure(bg=BG_COLOR, highlightthickness=0)
     canvas_widget.pack(fill=tk.BOTH, expand=True)
 
-    # Create renderer
+    # Create renderer and axes indicator
     renderer = Renderer(ax)
+    axes_indicator = AxesIndicator(ax_indicator)
 
     # Bottom frame for sliders
     slider_frame = ttk.Frame(root, padding="10")
@@ -248,6 +260,14 @@ def main() -> None:
                 # Orthogonal
                 rotated_3d = orthogonal_project_4d(rotated_4d)
                 projected = orthogonal_project(rotated_3d)
+
+            # Axes indicator: always orthogonal projection of rotated basis
+            rotated_basis_4d = apply_rotation_4d(
+                np.eye(4), rxy, rxz, rxw, ryz, ryw, rzw
+            )
+            basis_3d = orthogonal_project_4d(rotated_basis_4d)
+            basis_2d = orthogonal_project(basis_3d)
+            axes_indicator.update(basis_2d, dim=4)
         else:
             # 3D rotation and projection
             # Map XY/XZ/YZ plane rotations to X/Y/Z axis rotations
@@ -261,6 +281,11 @@ def main() -> None:
                 projected = perspective_project(rotated, distance)
             else:
                 projected = orthogonal_project(rotated)
+
+            # Axes indicator: always orthogonal projection of rotated basis
+            rotated_basis_3d = apply_rotation(np.eye(3), rx, ry, rz)
+            basis_2d = orthogonal_project(rotated_basis_3d)
+            axes_indicator.update(basis_2d, dim=3)
 
         # Set axis limits analytically based on projection bounds
         r_max = max_projected_radius(

@@ -1,9 +1,81 @@
 """Matplotlib rendering logic for wireframe display."""
 
+from typing import Any
+
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 import numpy as np
 from numpy.typing import NDArray
+
+# Axis colours: X=red, Y=green, Z=blue, W=yellow
+_AXIS_COLORS_3D = ["#FF4444", "#44FF44", "#4488FF"]
+_AXIS_COLORS_4D = ["#FF4444", "#44FF44", "#4488FF", "#FFFF44"]
+_AXIS_LABELS = ["X", "Y", "Z", "W"]
+
+
+class AxesIndicator:
+    """Draws a miniature axes orientation indicator with coloured arrows.
+
+    Attributes:
+        ax: The Matplotlib axes to draw on.
+        artists: List of artists (annotations and texts) to manage.
+    """
+
+    def __init__(self, ax: Axes) -> None:
+        """Initialize the axes indicator.
+
+        Args:
+            ax: Matplotlib axes for drawing the indicator.
+        """
+        self.ax = ax
+        self.artists: list[Any] = []
+
+    def update(self, basis_2d: NDArray[np.float64], dim: int) -> None:
+        """Redraw the axes indicator arrows and labels.
+
+        Args:
+            basis_2d: Array of shape (dim, 2) — each row is the 2D projected
+                tip of a standard basis vector after rotation.
+            dim: Number of axes to draw (3 or 4).
+        """
+        # Remove old artists
+        for artist in self.artists:
+            artist.remove()
+        self.artists.clear()
+
+        colors = _AXIS_COLORS_4D if dim == 4 else _AXIS_COLORS_3D
+
+        for i in range(dim):
+            tip_x, tip_y = basis_2d[i, 0], basis_2d[i, 1]
+
+            # Draw arrow from origin to tip
+            ann = self.ax.annotate(
+                "",
+                xy=(tip_x, tip_y),
+                xytext=(0, 0),
+                arrowprops=dict(
+                    arrowstyle="-|>",
+                    color=colors[i],
+                    lw=2,
+                    mutation_scale=12,
+                ),
+            )
+            self.artists.append(ann)
+
+            # Draw label just past the arrow tip
+            label = self.ax.text(
+                tip_x * 1.3,
+                tip_y * 1.3,
+                _AXIS_LABELS[i],
+                color=colors[i],
+                fontsize=10,
+                fontweight="bold",
+                ha="center",
+                va="center",
+            )
+            self.artists.append(label)
+
+        self.ax.figure.canvas.draw_idle()
 
 
 class Renderer:
